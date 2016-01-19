@@ -92,8 +92,9 @@ def getDensities_multi(Image,thresh,mask_radius):
     if progress.results is None or any(r is None for r in progress.results):
         result=None
     else:
-        result=np.sum(progress.results,0)
+        result=progress.results
         progress.clear_memory()
+        result=np.sum(result,0)
     return result
     
 def calcDensity(q_results, q_progress, q_status, child_conn, args):
@@ -154,14 +155,15 @@ def calcDensity(q_results, q_progress, q_status, child_conn, args):
         
         if percent<int(100*i/len(pxls)):
             percent=int(100*i/len(pxls))
-            q_progress.put(percent+2) #I have no idea why the last two percent aren't displayed, but I'm adding 2 so it reaches 100
+            q_progress.put(percent) 
         if not q_status.empty(): #check if the stop button has been pressed
             stop=q_status.get(False)
             q_results.put(None)
             return                 
     # finally, when we've finished with our calculation, we send back the result
     q_results.put(result)
-
+    del result
+    return 0
 
 
     
@@ -245,7 +247,7 @@ def getHigherPoint_multi(q_results, q_progress, q_status, child_conn, args):
                 return
             if percent<int(100*loop_i/len(oldremander)):
                 percent=int(100*loop_i/len(oldremander))
-                q_progress.put(percent+2)
+                q_progress.put(percent)
             idx=idxs[ii]
             density=densities_jittered[ii]
             x,y=idx
@@ -435,7 +437,7 @@ if __name__ == '__main__':
     center_minDistance=8
     gaussianblur_sigma=20
     min_number_of_pixels_in_cell=50
-    image_location=r'/Users/kyle/Github/cell_counter/test_files/1b_01_cropped.tif'
+    image_location=r'D:\Desktop\cell_counter\test_files\1b_01_cropped.tif'
     ###############################################################################
     ###############################################################################
 

@@ -5,7 +5,7 @@ Created on Mon Dec 21 09:58:17 2015
 @author: Kyle Ellefsen
 
 
-Use this file to loop through all the files, do extract the cell locations, and save the output.  
+Use this file to loop through all the files, extract the cell locations, and save the output.  
 
 How to use:
 1) Install Github Desktop, log in with your github account, and clone Flika into github.  Flika is located at https://github.com/kyleellefsen/Flika
@@ -43,14 +43,15 @@ def extractPoints(image_location, parameters, displayResults=False):
     #pw=plot_higher_pts(higher_pts)
     clusters, clusters_idx=find_clusters(higher_pts,idxs,center_minDensity,center_minDistance)
     clusters=filter_bad_cells(clusters,min_number_of_pixels_in_cell)
-    cluster_window=plot_clusters(clusters,A.shape)
+    if displayResults:
+        cluster_window=plot_clusters(clusters,A.shape)
     pts,flikapts_fname=getPoints(clusters,original.image,image_location,displayResults)
     
     if displayResults:
         original.setAsCurrentWindow()
         load_points(flikapts_fname)
         background(cluster_window,original,.2,True)
-    close(cluster_window)
+        close(cluster_window)
     if not displayResults:
         close(original)
     toc=time.time()-tic
@@ -77,10 +78,10 @@ parameters=mask_radius, thresh, density_thresh, center_minDensity, center_minDis
 if __name__=='__main__':
     directory=r'D:\Desktop\cell_counter\test_files'
     images=[f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory,f)) and os.path.splitext(f)[1]=='.tif']
-    #images=['1b_01.tif','1b_20_cropped.tif']
+    #images=['1b_01.tif']
     for image in images:
         image_location=os.path.join(directory,image)
-        pts=extractPoints(image_location, parameters, displayResults=True)
+        pts=extractPoints(image_location, parameters, displayResults=False)
         o_filename=os.path.splitext(image_location)[0]+'.csv'
         np.savetxt(o_filename,pts, header='X position,Y position,Mean Amplitude', fmt='%.4f', delimiter=',', comments='')
 
