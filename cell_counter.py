@@ -18,9 +18,7 @@ from PyQt4.QtGui import QBrush
 from PyQt4.QtCore import Qt
 
 
-
-path_to_github=r'/Users/kyle/GitHub'
-sys.path.insert(1,os.path.join(path_to_github,'Flika'));
+sys.path.insert(0, os.path.expanduser(r'~\Documents\Github\Flika'))
 from process.progress_bar import ProgressBar
 from FLIKA import *
 
@@ -437,7 +435,7 @@ if __name__ == '__main__':
     center_minDistance=8
     gaussianblur_sigma=20
     min_number_of_pixels_in_cell=50
-    image_location=r'D:\Desktop\cell_counter\test_files\1b_01_cropped.tif'
+    image_location=r'C:\Users\Kyle Ellefsen\Desktop\1a_46.tif'
     ###############################################################################
     ###############################################################################
 
