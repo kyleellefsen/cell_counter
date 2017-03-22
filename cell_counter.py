@@ -4,7 +4,6 @@ Created on Tue Dec 15 09:58:53 2015
 
 @author: Kyle Ellefsen
 """
-from __future__ import division
 import os, sys
 import numpy as np
 from scipy import spatial
@@ -14,21 +13,16 @@ from skimage.measure import regionprops
 from skimage.measure import label
 from multiprocessing import cpu_count
 import pyqtgraph as pg
-from PyQt4.QtGui import QBrush
-from PyQt4.QtCore import Qt
+from qtpy import QtCore, QtGui, QtWidgets
 
+try:
+    from flika import *
+except ImportError:
+    flika_dir = os.path.join(os.path.expanduser('~'),'Documents', 'GitHub', 'flika') # Change this to match the directory where Flika is located.
+    sys.path.append(flika_dir)
+    from flika import *
 
-sys.path.insert(0, os.path.expanduser(r'~\Documents\Github\Flika'))
-from process.progress_bar import ProgressBar
-from FLIKA import *
-
-
-
-
-
-
-
-
+from flika.process.progress_bar import ProgressBar
 
 
 
@@ -292,7 +286,7 @@ def plot_higher_pts(higher_pts):
     y=[d[0] for d in higher_pts_tmp] #smallest distance to higher point
     x=[d[2] for d in higher_pts_tmp] # density 
     pw=pg.PlotWidget()
-    pw.plot(x,y,pen=None, symbolBrush=QBrush(Qt.blue), symbol='o')
+    pw.plot(x,y,pen=None, symbolBrush=QtGui.QBrush(QtCore.Qt.blue), symbol='o')
     pw.plotItem.axes['left']['item'].setLabel('Smallest distance to denser point'); pw.plotItem.axes['bottom']['item'].setLabel('Density')
     pw.show()
     return pw
@@ -424,7 +418,7 @@ def getPoints(clusters,Image,image_location,saveFlikaPoints=True):
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv); initializeMainGui()
+    fa = start_flika()
     ###############################################################################
     #                    CONSTANTS
     ###############################################################################
@@ -435,32 +429,31 @@ if __name__ == '__main__':
     center_minDistance=8
     gaussianblur_sigma=20
     min_number_of_pixels_in_cell=50
-    image_location=r'C:\Users\Kyle Ellefsen\Desktop\1a_46.tif'
+    test_file = os.path.join(os.path.dirname(__file__), 'test', '1b_01.tif') # test_file = r"C:\Users\kyle\Documents\GitHub\cell_counter\test\1b_01.tif"
     ###############################################################################
     ###############################################################################
 
-    original=open_file(image_location)
-    blurred=gaussian_blur(gaussianblur_sigma,keepSourceWindow=True)
-    
-    A=original.image-blurred.image
+    original = open_file(test_file)
+    blurred = gaussian_blur(gaussianblur_sigma, norm_edges=True, keepSourceWindow=True)
+    high_pass = image_calculator(original, blurred, 'Subtract', keepSourceWindow=True)
     close(blurred)
-    A[:2*gaussianblur_sigma,:]=0
-    A[-2*gaussianblur_sigma:,:]=0
-    A[:,:2*gaussianblur_sigma]=0
-    A[:,-2*gaussianblur_sigma:]=0
-    A_norm=normalize(A)
-    mx,my=A.shape
-    Densities=getDensities_multi(A_norm,thresh,mask_radius)
+    high_pass.image[:2*gaussianblur_sigma, :]  = 0
+    high_pass.image[-2*gaussianblur_sigma:, :] = 0
+    high_pass.image[:, :2*gaussianblur_sigma]  = 0
+    high_pass.image[:, -2*gaussianblur_sigma:] = 0
+    A_norm=normalize(high_pass.image)
+    close(high_pass)
+    Densities = getDensities_multi(A_norm, thresh, mask_radius)
     Window(Densities,'Densities')
-    higher_pts,idxs=getHigherPoints_multi(Densities,density_thresh)
+    higher_pts,idxs = getHigherPoints_multi(Densities,density_thresh)
     
     
     #pw=plot_higher_pts(higher_pts)
-    clusters, clusters_idx=find_clusters(higher_pts,idxs, center_minDensity,center_minDistance)
+    clusters, clusters_idx = find_clusters(higher_pts,idxs, center_minDensity,center_minDistance)
     #plot_clusters(clusters)
     clusters=filter_bad_cells(clusters,min_number_of_pixels_in_cell)
-    cluster_window=plot_clusters(clusters,A.shape)
-    pts,flikapts_fname=getPoints(clusters,A,image_location)
+    cluster_window=plot_clusters(clusters, Densities.shape)
+    pts, flikapts_fname = getPoints(clusters, A_norm, test_file)
     
     original.setAsCurrentWindow()
     load_points(flikapts_fname)
@@ -469,6 +462,7 @@ if __name__ == '__main__':
     
     toc=time.time()-tic
     print('Total Running Time = {} s'.format(toc))
+    fa.app.exec_()
 ###############################################################################
 ###############################################################################
 
