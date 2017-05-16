@@ -1,0 +1,21 @@
+<plugin name="Cell Counter">
+    <directory>
+        cell_counter
+    </directory>
+	<version>
+		2017.05.15
+	</version>
+	<author>
+		Kyle Ellefsen
+	</author>
+	<url>
+		https://github.com/kyleellefsen/cell_counter/archive/master.zip
+	</url>
+	<dependencies>
+	</dependencies>
+	<menu_layout>
+		<action location="cell_counter" function="cell_counter.gui">Cell Counter</action>
+		<action location="cell_counter" function="run_demo">Run Demo</action>
+		<action location="cell_counter" function="launch_docs">Docs</action>
+	</menu_layout>
+</plugin>

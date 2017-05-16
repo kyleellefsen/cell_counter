@@ -15,23 +15,14 @@ from multiprocessing import cpu_count
 import pyqtgraph as pg
 from qtpy import QtCore, QtGui, QtWidgets
 
-try:
-    from flika import *
-except ImportError:
-    flika_dir = os.path.join(os.path.expanduser('~'),'Documents', 'GitHub', 'flika') # Change this to match the directory where Flika is located.
-    sys.path.append(flika_dir)
-    from flika import *
-
 from flika.process.progress_bar import ProgressBar
-
-
-
-
-
-
-
-
-
+from flika import global_vars as g
+from flika.window import Window
+from flika.roi import ROI_rectangle, makeROI
+from flika.process.file_ import open_file
+from flika.utils.misc import open_file_gui
+from flika.process import *
+from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
 
 
 def getMask(nx=5,ny=5):
@@ -40,26 +31,28 @@ def getMask(nx=5,ny=5):
     x0,y0=center
     for x in np.arange(nx):
         for y in np.arange(ny):
-            if  ((x-x0)**2) / (x0**2)   +   ((y-y0)**2) / (y0**2) <= 1:
-                mask[x,y]=1
+            if ((x-x0)**2) / (x0**2) + ((y-y0)**2) / (y0**2) <= 1:
+                mask[x,y] = 1
     return mask, center
     
 def normalize(A):
-    A=np.copy(A)
-    std=np.std(A)
-    mean=np.mean(A)
-    A-=mean
-    A/=std
+    A = np.copy(A)
+    std = np.std(A)
+    mean = np.mean(A)
+    A -= mean
+    A /= std
     return A
     
 class Point():
     def __init__(self,idx):
-        self.children=[]
-        self.idx=idx
+        self.children = []
+        self.idx = idx
+
     def __repr__(self):
         return str(self.idx)
+
     def getDescendants(self):
-        self.descendants=self.children[:]
+        self.descendants = self.children[:]
         for child in self.children:
             self.descendants.extend(child.getDescendants())
         return self.descendants
@@ -72,28 +65,27 @@ class Point():
 ###############################################################################
 #                    Density
 ###############################################################################
-def getDensities_multi(Image,thresh,mask_radius):
-    if mask_radius%2==0:
-        mask_radius+=1
+def getDensities_multi(Image, thresh, mask_radius):
+    if mask_radius % 2 == 0:
+        mask_radius += 1
     nCores = cpu_count()
-    pxls=np.array(np.where(Image>thresh)).T
-    block_ends=np.linspace(0,len(pxls),nCores+1).astype(np.int)
-    data_blocks=[pxls[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
-    args=(Image,mask_radius)
+    pxls = np.array(np.where(Image>thresh)).T
+    block_ends = np.linspace(0, len(pxls), nCores+1).astype(np.int)
+    data_blocks = [pxls[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
+    args = (Image, mask_radius)
     progress = ProgressBar(calcDensity, data_blocks, args, nCores, msg='Calculating Density')
     if progress.results is None or any(r is None for r in progress.results):
-        result=None
+        result = None
     else:
-        result=progress.results
-        progress.clear_memory()
-        result=np.sum(result,0)
+        result = progress.results
+        result = np.sum(result,0)
     return result
     
 def calcDensity(q_results, q_progress, q_status, child_conn, args):
     pxls=child_conn.recv() # unfortunately this step takes a long time
     percent=0  # This is the variable we send back which displays our progress
     status=q_status.get(True) #this blocks the process from running until all processes are launched
-    if status=='Stop':
+    if status =='Stop':
         q_results.put(None) # if the user presses stop, return None
 
 
@@ -111,12 +103,12 @@ def calcDensity(q_results, q_progress, q_status, child_conn, args):
     '''
     
     
-    Image,mask_radius=args #unpack all the variables inside the args tuple
-    result=np.zeros(Image.shape)
-    mx,my=Image.shape
-    mask,center=getMask(mask_radius,mask_radius)
-    mask_idx=np.where(mask)
-    for i,pxl in enumerate(pxls):
+    Image, mask_radius = args #unpack all the variables inside the args tuple
+    result = np.zeros(Image.shape)
+    mx, my = Image.shape
+    mask,center = getMask(mask_radius,mask_radius)
+    mask_idx = np.where(mask)
+    for i, pxl in enumerate(pxls):
         x,y=pxl
         square_cutout=Image[x-center[0]:x+center[0]+1,y-center[1]:y+center[1]+1]
         try:
@@ -154,8 +146,6 @@ def calcDensity(q_results, q_progress, q_status, child_conn, args):
             return                 
     # finally, when we've finished with our calculation, we send back the result
     q_results.put(result)
-    del result
-    return 0
 
 
     
@@ -344,7 +334,7 @@ def plot_cluster2(clusters):
     return W
     
     
-def filter_bad_cells(clusters,min_number_of_pixels_in_cell):
+def filter_bad_cells(clusters, min_number_of_pixels_in_cell):
     new_clusters=[]
     for i, cluster in enumerate(clusters):
         if len(cluster)<min_number_of_pixels_in_cell:
@@ -380,7 +370,7 @@ def getprops(clusters,image):
         label_image=label(im,background=0)
         label_image+=1
         regions=regionprops(label_image)
-        if len(regions)>1:
+        if len(regions) > 1:
             print("ERROR You should have run this through 'filter_bad_cells' first" )
             return None
         r=regions[0]
@@ -412,24 +402,36 @@ def getPoints(clusters,Image,image_location,saveFlikaPoints=True):
         return pts, filename
     else:
         return pts, None
+
+
+class Cell_Counter():
+    """cell_counter()
+    """
+
+    def __init__(self):
+        pass
+
+    def gui(self):
+        pass
+
+cell_counter = Cell_Counter()
     
+def launch_docs():
+    url='https://github.com/kyleellefsen/cell_counter'
+    QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
-
-
-
-if __name__ == '__main__':
-    fa = start_flika()
+def run_demo():
     ###############################################################################
     #                    CONSTANTS
     ###############################################################################
-    mask_radius=19
-    thresh=.5
-    density_thresh=50
-    center_minDensity=0
-    center_minDistance=8
-    gaussianblur_sigma=20
-    min_number_of_pixels_in_cell=50
-    test_file = os.path.join(os.path.dirname(__file__), 'test', '1b_01.tif') # test_file = r"C:\Users\kyle\Documents\GitHub\cell_counter\test\1b_01.tif"
+    mask_radius = 19
+    thresh = .5
+    density_thresh = 50
+    center_minDensity = 0
+    center_minDistance = 8
+    gaussianblur_sigma = 20
+    min_number_of_pixels_in_cell = 50
+    test_file = os.path.join(os.path.dirname(__file__), 'test', '1b_01_cropped.tif')  # test_file = r"C:\Users\kyle\.FLIKA\plugins\cell_counter\test\1b_01_cropped.tif"
     ###############################################################################
     ###############################################################################
 
@@ -437,36 +439,29 @@ if __name__ == '__main__':
     blurred = gaussian_blur(gaussianblur_sigma, norm_edges=True, keepSourceWindow=True)
     high_pass = image_calculator(original, blurred, 'Subtract', keepSourceWindow=True)
     close(blurred)
-    high_pass.image[:2*gaussianblur_sigma, :]  = 0
-    high_pass.image[-2*gaussianblur_sigma:, :] = 0
-    high_pass.image[:, :2*gaussianblur_sigma]  = 0
-    high_pass.image[:, -2*gaussianblur_sigma:] = 0
-    A_norm=normalize(high_pass.image)
+    high_pass.image[:2 * gaussianblur_sigma, :] = 0
+    high_pass.image[-2 * gaussianblur_sigma:, :] = 0
+    high_pass.image[:, :2 * gaussianblur_sigma] = 0
+    high_pass.image[:, -2 * gaussianblur_sigma:] = 0
+    A_norm = normalize(high_pass.image)
     close(high_pass)
     Densities = getDensities_multi(A_norm, thresh, mask_radius)
-    Window(Densities,'Densities')
-    higher_pts,idxs = getHigherPoints_multi(Densities,density_thresh)
-    
-    
-    #pw=plot_higher_pts(higher_pts)
-    clusters, clusters_idx = find_clusters(higher_pts,idxs, center_minDensity,center_minDistance)
-    #plot_clusters(clusters)
-    clusters=filter_bad_cells(clusters,min_number_of_pixels_in_cell)
-    cluster_window=plot_clusters(clusters, Densities.shape)
+    Window(Densities, 'Densities')
+    higher_pts, idxs = getHigherPoints_multi(Densities, density_thresh)
+
+    # pw=plot_higher_pts(higher_pts)
+    clusters, clusters_idx = find_clusters(higher_pts, idxs, center_minDensity, center_minDistance)
+    # plot_clusters(clusters)
+    clusters = filter_bad_cells(clusters, min_number_of_pixels_in_cell)
+    cluster_window = plot_clusters(clusters, Densities.shape)
     pts, flikapts_fname = getPoints(clusters, A_norm, test_file)
-    
     original.setAsCurrentWindow()
-    load_points(flikapts_fname)
-    background(cluster_window,original,.2,True)
-    close(cluster_window)
-    
-    toc=time.time()-tic
-    print('Total Running Time = {} s'.format(toc))
-    fa.app.exec_()
-###############################################################################
-###############################################################################
+    open_points(flikapts_fname)
+    background(cluster_window, original, .2, True)
+    #close(cluster_window)
 
-
+    ###############################################################################
+    ###############################################################################
 
 
 
