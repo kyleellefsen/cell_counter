@@ -61,55 +61,55 @@ def plot_higher_pts(higher_pts):
     return pw
 
 def find_clusters(higher_pts,idxs,center_minDensity,center_minDistance):
-    centers=[]
-    outsideROI=[]
+    centers = []
+    outsideROI = []
     for i in np.arange(len(higher_pts)):
-        y=higher_pts[i][0]#smallest distance to higher point
-        x=higher_pts[i][2]# density 
-        if x>center_minDensity and y>center_minDistance:
+        y = higher_pts[i][0]  # smallest distance to higher point
+        x = higher_pts[i][2]  # density
+        if x > center_minDensity and y > center_minDistance:
             centers.append(i)
         else:
             outsideROI.append(i)
 
-    higher_pts2=higher_pts[:,1].astype(np.int) #contains index of next highest point
-    points=[Point(i) for i in np.arange(len(higher_pts2))]
-    loop=np.arange(len(higher_pts2))
-    loop=np.delete(loop,centers)
+    higher_pts2 = higher_pts[:,1].astype(np.int)  # contains index of next highest point
+    points = [Point(i) for i in np.arange(len(higher_pts2))]
+    loop = np.arange(len(higher_pts2))
+    loop = np.delete(loop, centers)
     for i in loop:
-        if higher_pts2[i]!=i:
+        if higher_pts2[i] != i:
             points[higher_pts2[i]].children.append(points[i])
-    clusters=[]
+    clusters = []
     for center in centers:
-        descendants=points[center].getDescendants()
+        descendants = points[center].getDescendants()
         cluster=[d.idx for d in descendants]
         cluster=np.array(cluster+[center])
         clusters.append(cluster)
         
-    clusters_idx=clusters
-    clusters=[idxs[c] for c in clusters]
+    clusters_idx = clusters
+    clusters = [idxs[c] for c in clusters]
     return clusters, clusters_idx
     
 
 def plot_clusters(clusters,imshape):
-    mx,my=imshape
-    cluster_im=np.zeros((mx,my,4))
-    cmap=matplotlib.cm.gist_rainbow
+    mx, my = imshape
+    cluster_im = np.zeros((mx,my,4))
+    cmap = matplotlib.cm.gist_rainbow
     for i in np.arange(len(clusters)):
-        color=cmap(int(((i%15)*255./16)))#+np.random.randint(255./12)))
-        cluster=clusters[i]
-        x,y=cluster.T
+        color = cmap(int(((i%15)*255./16)))#+np.random.randint(255./12)))
+        cluster = clusters[i]
+        x,y = cluster.T
         cluster_im[x,y,:]=color
     return Window(cluster_im, 'Clusters')
     
 def plot_cluster2(clusters):
-    sizes=[np.max(cluster,0)-np.min(cluster,0) for cluster in clusters]
+    sizes = [np.max(cluster,0)-np.min(cluster,0) for cluster in clusters]
     np.max(sizes)
-    mmx,mmy=np.max(sizes,0)+1
-    Cells= np.zeros((len(clusters),mmx,mmy))
-    for i,cluster in enumerate(clusters):
-        x,y=(cluster-np.min(cluster,0)).T
-        Cells[i,x,y]=1
-    W=Window(Cells)
+    mmx, mmy = np.max(sizes,0)+1
+    Cells = np.zeros((len(clusters), mmx, mmy))
+    for i, cluster in enumerate(clusters):
+        x,y = (cluster-np.min(cluster,0)).T
+        Cells[i,x,y] = 1
+    W = Window(Cells)
     return W
     
     
@@ -136,47 +136,47 @@ def filter_bad_cells(clusters, min_number_of_pixels_in_cell):
     return new_clusters
 
 
-def getprops(clusters,image):
-    properties=[]
+def getprops(clusters, image):
+    properties = []
     for i, cluster in enumerate(clusters):
-        offset=np.min(cluster,0)
-        cluster=cluster-offset
-        mmx,mmy=np.max(cluster,0)+1
-        im=np.zeros((mmx,mmy),dtype=np.uint8)
-        x,y=cluster.T
-        im[x,y]=1
-        label_image=label(im,background=0)
-        label_image+=1
-        regions=regionprops(label_image)
+        offset = np.min(cluster,0)
+        cluster = cluster-offset
+        mmx,mmy = np.max(cluster,0)+1
+        im = np.zeros((mmx,mmy),dtype=np.uint8)
+        x,y = cluster.T
+        im[x,y] = 1
+        label_image = label(im,background=0)
+        label_image += 1
+        regions = regionprops(label_image)
         if len(regions) > 1:
             print("ERROR You should have run this through 'filter_bad_cells' first" )
             return None
-        r=regions[0]
-        x=x+offset[0]
-        y=y+offset[1]
-        mean_vals=np.mean(image[x,y])
-        meanx=np.mean(x)
-        meany=np.mean(y)
+        r = regions[0]
+        x = x + offset[0]
+        y = y + offset[1]
+        mean_vals = np.mean(image[x,y])
+        meanx = np.mean(x)
+        meany = np.mean(y)
         properties.append([i, meanx, meany, r.area, r.eccentricity, r.orientation, mean_vals, ])
-    properties=np.array(properties)
+    properties = np.array(properties)
     return properties
 
 
-def getPoints(clusters,Image,image_location,saveFlikaPoints=True):
-    mean_xs=[]; mean_ys=[]; mean_vals=[]
+def getPoints(clusters, Image, image_location, saveFlikaPoints=True):
+    mean_xs = []; mean_ys = []; mean_vals = []
     for cluster in clusters:
-        x,y=cluster.T
-        vals=Image[x,y]
+        x,y = cluster.T
+        vals = Image[x,y]
         mean_xs.append(np.sum(vals*x)/np.sum(vals))
         mean_ys.append(np.sum(vals*y)/np.sum(vals))
         mean_vals.append(np.mean(vals))
         
-    pts = np.array([mean_xs,mean_ys,mean_vals]).T
+    pts = np.array([mean_xs, mean_ys, mean_vals]).T
     #pts=pts[pts[:,2]>400]
     if saveFlikaPoints:
         filename=os.path.splitext(image_location)[0]+'.txt'
         flika_pts=np.hstack((np.zeros((len(pts),1)),pts[:,:2]))
-        np.savetxt(filename,flika_pts)
+        np.savetxt(filename, flika_pts)
         return pts, filename
     else:
         return pts, None
@@ -222,13 +222,9 @@ def run_demo():
     ###############################################################################
 
     original = open_file(test_file)
-    blurred = gaussian_blur(gaussianblur_sigma, norm_edges=True, keepSourceWindow=True)
+    blurred = gaussian_blur(gaussianblur_sigma, norm_edges=False, keepSourceWindow=True)
     high_pass = image_calculator(original, blurred, 'Subtract', keepSourceWindow=True)
     close(blurred)
-    high_pass.image[:2 * gaussianblur_sigma, :] = 0
-    high_pass.image[-2 * gaussianblur_sigma:, :] = 0
-    high_pass.image[:, :2 * gaussianblur_sigma] = 0
-    high_pass.image[:, -2 * gaussianblur_sigma:] = 0
     A_norm = normalize(high_pass.image)
     close(high_pass)
     Densities = getDensities_multi(A_norm, thresh, mask_radius)
